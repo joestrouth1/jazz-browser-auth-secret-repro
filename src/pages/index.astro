@@ -3,14 +3,84 @@
 ---
 
 <html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Astro</title>
+  </head>
+  <body>
+    <h1>Astro</h1>
+    <script>
+      import { JAZZ_CLOUD_KEY } from "astro:env/client";
+      import { createJazzBrowserContext } from "jazz-browser";
+      import { co, Group, z } from "jazz-tools";
+
+      const DsProfile = co.profile({
+        name: z.string(),
+        avatar: z.optional(co.image()),
+      });
+      const DesignSystem = co.map({
+        prefLabel: z.string(),
+      });
+      const DraftDesignSystem = co.map({
+        prefLabel: z.optional(z.string()),
+      });
+      const ListOfDesignSystems = co.list(DesignSystem);
+
+      const DsRoot = co.map({
+        designSystems: ListOfDesignSystems,
+        draft: DraftDesignSystem,
+      });
+
+      const DsAccount = co
+        .account({
+          profile: DsProfile,
+          root: DsRoot,
+        })
+        .withMigration((account, creationProps) => {
+          if (import.meta.env.DEV) {
+            console.debug("migrate", account, creationProps);
+            if (creationProps) {
+              console.debug("CREATION PROPS -----", creationProps);
+            }
+          }
+
+          if (account.profile === undefined) {
+            const profileGroup = Group.create();
+            profileGroup.addMember("everyone", "reader");
+            account.profile = DsProfile.create(
+              {
+                name: "New friend",
+              },
+              profileGroup
+            );
+          }
+
+          if (account.root === undefined) {
+            account.root = DsRoot.create({
+              designSystems: ListOfDesignSystems.create(
+                [DesignSystem.create({ prefLabel: "my first design system" })],
+                Group.create()
+              ),
+              draft: DraftDesignSystem.create({}, Group.create()),
+            });
+          }
+        });
+
+      const context = await createJazzBrowserContext({
+        sync: {
+          peer: `wss://cloud.jazz.tools/?key=${JAZZ_CLOUD_KEY}`,
+        },
+        AccountSchema: DsAccount,
+      });
+
+      declare module "jazz-tools" {
+        interface Register {
+          Account: typeof DsAccount;
+        }
+      }
+    </script>
+  </body>
 </html>

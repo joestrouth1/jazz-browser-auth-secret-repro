@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "astro": "^5.7.13",
-    "jazz-browser": "^0.13.33",
-    "jazz-tools": "^0.13.33"
+    "jazz-browser": "^0.14.1",
+    "jazz-tools": "^0.14.1"
   }
 }
